@@ -18,6 +18,8 @@ public class DSARF extends AdaptiveRandomForest {
 	
 	private static final long serialVersionUID = 1L;
 	public ArrayList<ArrayList<Integer>> ensemblearray;
+	public static int instsee = 0;
+	public static float acc = 0;
 	
 	public IntOption slidingWindowSizeOption = new IntOption("slidingWindowSize", 'z',
             "Size of the sliding window", 100, 1, Integer.MAX_VALUE);
@@ -26,16 +28,7 @@ public class DSARF extends AdaptiveRandomForest {
     public String getPurposeString() {
         return "Dynamic Selection in Adaptive Random Forest algorithm for evolving data streams";
     }
-	//slidingwindow
-	public static ArrayList<Integer> slidingwindowarray(ArrayList<Integer> array,boolean correctlyClassifies,int windowsize){
-        int b = correctlyClassifies? 1 : 0;
-        array.add(b);
-        if(array.size() == windowsize + 1){
-            array.remove(0);
-        }  
-        
-        return array;
-    }
+	
 	/*
 	//slidingdelayedwindow
 	public static ArrayList<Integer> slidingdelayedwindowarray(ArrayList<Integer> array, boolean correctlyClassifies, int windowsize){
@@ -67,8 +60,12 @@ public class DSARF extends AdaptiveRandomForest {
         	}
         	//slidingwindow
         	boolean correctlyClassifies = this.ensemble[i].classifier.correctlyClassifies(instance);
-        	slidingwindowarray(this.ensemblearray.get(i), correctlyClassifies, this.slidingWindowSizeOption.getValue());
-        	
+        	ArrayList<Integer> currentarray = this.ensemblearray.get(i);
+        	int b = correctlyClassifies? 1 : 0;
+        	currentarray.add(b);
+            if(currentarray.size() == this.slidingWindowSizeOption.getValue() + 1){	           	
+            	currentarray.remove(0);	
+            }
             DoubleVector vote = new DoubleVector(this.ensemble[i].getVotesForInstance(testInstance));
             if (vote.sumOfValues() > 0.0) {
                 vote.normalize();
