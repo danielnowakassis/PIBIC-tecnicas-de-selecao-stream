@@ -20,7 +20,7 @@ public class DSARF extends AdaptiveRandomForest {
 	public ArrayList<ArrayList<Integer>> ensemblearray;
 	public static int instsee = 0;
 	public static float acc = 0;
-	
+	public static boolean changetobkg = false;
 	public IntOption slidingWindowSizeOption = new IntOption("slidingWindowSize", 'z',
             "Size of the sliding window", 100, 1, Integer.MAX_VALUE);
 	
@@ -54,6 +54,9 @@ public class DSARF extends AdaptiveRandomForest {
          
         for(int i = 0 ; i < this.ensemble.length ; ++i) {
         	//add ensemble array
+        	if (changetobkg) {
+        		this.ensemblearray.clear();
+        	}
         	if (this.ensemblearray.size() < this.ensemble.length) {
         		ArrayList<Integer> array = new ArrayList<Integer>();
         		this.ensemblearray.add(array);
@@ -80,6 +83,23 @@ public class DSARF extends AdaptiveRandomForest {
         }
         return combinedVote.getArrayRef();
     }
+	
+	protected final class DSARFBaseLearner extends AdaptiveRandomForest.ARFBaseLearner{
+		
+		@Override
+		public void reset() {
+            if(this.useBkgLearner && this.bkgLearner != null) {
+                this.classifier = this.bkgLearner.classifier;
+                changetobkg = true;
+                this.driftDetectionMethod = this.bkgLearner.driftDetectionMethod;
+                this.warningDetectionMethod = this.bkgLearner.warningDetectionMethod;
+                
+                this.evaluator = this.bkgLearner.evaluator;
+                this.createdOn = this.bkgLearner.createdOn;
+                this.bkgLearner = null;
+            }
+	}
+	}
 }
 
 
