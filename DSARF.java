@@ -56,6 +56,7 @@ public class DSARF extends AdaptiveRandomForest {
         	//add ensemble array
         	if (changetobkg) {
         		this.ensemblearray.clear();
+                        changetobkg = false;
         	}
         	if (this.ensemblearray.size() < this.ensemble.length) {
         		ArrayList<Integer> array = new ArrayList<Integer>();
