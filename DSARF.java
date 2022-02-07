@@ -20,6 +20,7 @@ public class DSARF extends AdaptiveRandomForest {
 	public ArrayList<ArrayList<Integer>> ensemblearray;
 	public static int instsee = 0;
 	public static float acc = 0;
+        ArrayList<Integer> currentarray;
 	public static boolean changetobkg = false;
 	public IntOption slidingWindowSizeOption = new IntOption("slidingWindowSize", 'z',
             "Size of the sliding window", 100, 1, Integer.MAX_VALUE);
@@ -64,7 +65,7 @@ public class DSARF extends AdaptiveRandomForest {
         	}
         	//slidingwindow
         	boolean correctlyClassifies = this.ensemble[i].classifier.correctlyClassifies(instance);
-        	ArrayList<Integer> currentarray = this.ensemblearray.get(i);
+        	currentarray = this.ensemblearray.get(i);
         	int b = correctlyClassifies? 1 : 0;
         	currentarray.add(b);
             if(currentarray.size() == this.slidingWindowSizeOption.getValue() + 1){	           	
