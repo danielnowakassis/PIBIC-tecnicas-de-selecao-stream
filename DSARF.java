@@ -13,12 +13,10 @@ import moa.core.DoubleVector;
 import moa.core.Utils;
 import moa.evaluation.BasicClassificationPerformanceEvaluator;
 import moa.options.ClassOption;
-
 public class DSARF extends AdaptiveRandomForest {
 	
 	private static final long serialVersionUID = 1L;
 	public ArrayList<ArrayList<Integer>> ensemblearray;
-    ArrayList<Integer> currentarray;
 	public static boolean changetobkg = false;
 	public IntOption slidingWindowSizeOption = new IntOption("slidingWindowSize", 'z',
             "Size of the sliding window", 100, 1, Integer.MAX_VALUE);
@@ -63,11 +61,10 @@ public class DSARF extends AdaptiveRandomForest {
         	}
         	//slidingwindow
         	boolean correctlyClassifies = this.ensemble[i].classifier.correctlyClassifies(instance);
-        	this.currentarray = this.ensemblearray.get(i);
         	int b = correctlyClassifies? 1 : 0;
-        	this.currentarray.add(b);
-            if(currentarray.size() == this.slidingWindowSizeOption.getValue() + 1){	           	
-            	currentarray.remove(0);	
+        	this.ensemblearray.get(i).add(b);
+            if(this.ensemblearray.get(i).size() == this.slidingWindowSizeOption.getValue() + 1){	           	
+            	this.ensemblearray.get(i).remove(0);	
             }
             DoubleVector vote = new DoubleVector(this.ensemble[i].getVotesForInstance(testInstance));
             if (vote.sumOfValues() > 0.0) {
