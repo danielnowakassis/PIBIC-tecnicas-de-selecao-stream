@@ -33,39 +33,6 @@ public class DSARF extends AdaptiveRandomForest {
         return "Dynamic Selection in Adaptive Random Forest algorithm for evolving data streams";
     }
 	
-	private ExecutorService executor;
-	
-	@Override
-    public void trainOnInstanceImpl(Instance instance) {
-        ++this.instancesSeen;
-        if(this.ensemble == null) 
-            initEnsemble(instance);
-        Collection<TrainingRunnable> trainers = new ArrayList<TrainingRunnable>();
-        for (int i = 0 ; i < this.ensemble.length ; i++) {
-            DoubleVector vote = new DoubleVector(this.ensemble[i].getVotesForInstance(instance));
-            InstanceExample example = new InstanceExample(instance);
-            this.ensemble[i].evaluator.addResult(example, vote.getArrayRef());
-            int k = MiscUtils.poisson(this.lambdaOption.getValue(), this.classifierRandom);
-            if (k > 0) {
-                if(this.executor != null) {
-                    TrainingRunnable trainer = new TrainingRunnable(this.ensemble[i], 
-                        instance, k, this.instancesSeen);
-                    trainers.add(trainer);
-                }
-                else { // SINGLE_THREAD is in-place... 
-                    this.ensemble[i].trainOnInstance(instance, k, this.instancesSeen);
-                }
-            }
-        }
-        if(this.executor != null) {
-            try {
-                this.executor.invokeAll(trainers);
-            } catch (InterruptedException ex) {
-                throw new RuntimeException("Could not call invokeAll() on training threads.");
-            }
-        }
-    }
-	
 	@Override
     public double[] getVotesForInstance(Instance instance) {
 		Instance testInstance = instance.copy();
@@ -74,6 +41,7 @@ public class DSARF extends AdaptiveRandomForest {
         if(this.ensemblearray == null) {
         	this.ensemblearray = new ArrayList<ArrayList<Integer>>();
         }
+        
         DoubleVector combinedVote = new DoubleVector();
         for(int i = 0 ; i < this.ensemble.length ; ++i) {
         	//add ensemble array
@@ -85,14 +53,6 @@ public class DSARF extends AdaptiveRandomForest {
         		ArrayList<Integer> array = new ArrayList<Integer>();
         		this.ensemblearray.add(array);
         	}
-        	//this.ensemblearray.get(i);
-        	/*
-        	try {
-        		this.ensemblearray.get(i);
-        	}catch(){
-        		ArrayList<Integer> array = new ArrayList<Integer>();
-        		this.ensemblearray.add(array);
-        	}*/
         	
         	//slidingwindow
         	boolean correctlyClassifies = this.ensemble[i].classifier.correctlyClassifies(instance);
@@ -104,20 +64,24 @@ public class DSARF extends AdaptiveRandomForest {
             for(int j = 0; j < this.ensemblearray.get(i).size(); ++j) {
 		    	acertos += this.ensemblearray.get(i).get(j);
 		    }
-		    float acuracia = (float) acertos/ this.ensemblearray.get(i).size();
-		    acertos = 0;  
+		    float acuracia = (float) acertos/ this.ensemblearray.get(i).size();		    
+		    acertos = 0;
+		    		    
             DoubleVector vote = new DoubleVector(this.ensemble[i].getVotesForInstance(testInstance));
             if (vote.sumOfValues() > 0.0) {
                 vote.normalize();
-                double acc = this.ensemble[i].evaluator.getPerformanceMeasurements()[1].getValue();                
+                double acc = this.ensemble[i].evaluator.getPerformanceMeasurements()[1].getValue();      
                 if(! this.disableWeightedVote.isSet() && acc > 0.0) {                        
                     for(int v = 0 ; v < vote.numValues() ; ++v) {
                         vote.setValue(v, vote.getValue(v) * acc);
                     }
                 }
-                combinedVote.addValues(vote);
+                if((acuracia > 0.6 && this.instancesSeen < 1000) || (acuracia > 0.69 && this.instancesSeen > 1000)){
+                combinedVote.addValues(vote);}
+                
             }
         }
+        
         return combinedVote.getArrayRef();
     }
 	
