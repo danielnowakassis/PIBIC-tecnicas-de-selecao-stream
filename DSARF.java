@@ -87,7 +87,7 @@ public class DSARF extends AdaptiveRandomForest {
 		    
 		    //slidingwindow -> threshold
 		    int most_recurrent = 0;
-		    //int second_recurrent = 0;
+		    int second_recurrent = 0;
 		    int classification_threshold = 0;
 		    if(this.instancesSeen > 99) {
 			    this.recurrency_control.add(accuracy);
@@ -106,12 +106,12 @@ public class DSARF extends AdaptiveRandomForest {
 			    	if(current > most_recurrent) {
 			    		most_recurrent = current;
 			    		classification_threshold = k;
-			    	}/*else if(current < most_recurrent && current > second_recurrent && k > classification_threshold ){
+			    	}else if(current < most_recurrent && current > second_recurrent && k > classification_threshold ){
 			    		second_recurrent = current;
 			    		if (second_recurrent >= 30){
 			    			classification_threshold = k;
 			    		}	
-			    	}*/
+			    	}
 			    	
 			    }
 		    }
