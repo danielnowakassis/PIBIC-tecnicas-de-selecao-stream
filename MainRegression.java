@@ -8,56 +8,38 @@ import java.io.IOException;
 import java.io.PrintWriter;
 
 import moa.classifiers.meta.AdaptiveRandomForest;
+import moa.classifiers.meta.AdaptiveRandomForestRegressor;
 import moa.classifiers.meta.LeveragingBag;
 import moa.classifiers.meta.OnlineAccuracyUpdatedEnsemble;
 import moa.classifiers.meta.OnlineSmoothBoost;
 import moa.classifiers.meta.OzaBag;
 import moa.classifiers.meta.OzaBoost;
 import moa.classifiers.meta.StreamingRandomPatches;
+import moa.classifiers.trees.FIMTDD;
 import moa.evaluation.BasicClassificationPerformanceEvaluator;
+import moa.evaluation.BasicRegressionPerformanceEvaluator;
 import moa.evaluation.preview.LearningCurve;
 import moa.streams.ArffFileStream;
 import moa.tasks.EvaluatePrequential;
 import moa.tasks.EvaluatePrequentialCV;
 import moa.tasks.EvaluatePrequentialDelayedCV;
+import moa.tasks.EvaluatePrequentialRegression;
 
-public class Main {
+public class MainRegression {
 
 	public static void main(String[] args) { 
 		FileWriter fWriter;
-		//MediaSRP learner = new MediaSRP();
-		//AdaptiveRandomForest learner = new AdaptiveRandomForest();
-		//CertoArf learner = new CertoArf();
-		//MediaArf learner = new MediaArf();
-		//WARF learner = new WARF();
-		//SSRP learner = new SSRP();
-		StreamingRandomPatches learner = new StreamingRandomPatches();
-		//MediaSRP learner = new MediaSRP();
-		//SSRP learner = new SSRP();
-		//SAdaptiveRandomForest learner = new SAdaptiveRandomForest();
-		//CertoOzaBag learner = new CertoOzaBag();
-		//SOzaBag learner = new SOzaBag();
-		//OzaBag learner = new OzaBag();
-		//LeveragingBag learner = new LeveragingBag();
-		//SLeveragingBag learner = new SLeveragingBag();
-		//OnlineAccuracyUpdatedEnsemble learner = new OnlineAccuracyUpdatedEnsemble();
-		//SOAUE learner = new SOAUE();
-		//OzaBoost learner = new OzaBoost();
-		//StreamingRandomPatches learner = new StreamingRandomPatches();
-		
-		//SOzaBoost learner = new SOzaBoost();
-		//OnlineSmoothBoost learner = new OnlineSmoothBoost();
-		//SOSB learner = new SOSB();
-		//SOnlineSmoothBoost learner = new SOnlineSmoothBoost();
-		
+		AdaptiveRandomForestRegressor learner = new AdaptiveRandomForestRegressor();
+		//FIMTDD learner = new FIMTDD();
+		//SARFReg learner = new SARFReg();
 		
 
 	    
 		//learner.slidingWindowSizeOption.setValue(10);
 		//learner.density_control_size.setValue(500);
-		ArffFileStream stream = new ArffFileStream("path_base_de_dados", -1);
+		ArffFileStream stream = new ArffFileStream("path_basededadosB", -1);
 		stream.prepareForUse(); 
-		BasicClassificationPerformanceEvaluator evaluator = new BasicClassificationPerformanceEvaluator();
+		BasicRegressionPerformanceEvaluator evaluator = new BasicRegressionPerformanceEvaluator();
 
 		//learner.numberOfJobsOption.setValue(-1);
 		
@@ -67,7 +49,7 @@ public class Main {
 		//learner.memberCountOption.setValue(100);
 	
 		
-		EvaluatePrequential task = new EvaluatePrequential();
+		EvaluatePrequentialRegression task = new EvaluatePrequentialRegression();
 		task.sampleFrequencyOption.setValue(1000000000);
 
 		//task.sampleFrequencyOption.setValue(2000);
