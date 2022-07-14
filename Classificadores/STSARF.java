@@ -18,6 +18,7 @@ import moa.AbstractMOAObject;
 import moa.classifiers.core.driftdetection.ChangeDetector;
 import moa.classifiers.meta.AdaptiveRandomForest;
 import moa.classifiers.meta.AdaptiveRandomForest.ARFBaseLearner;
+import moa.classifiers.meta.AdaptiveRandomForest.TrainingRunnable;
 import moa.classifiers.trees.ARFHoeffdingTree;
 import moa.core.DoubleVector;
 import moa.core.InstanceExample;
@@ -29,14 +30,20 @@ public class STSARF extends AdaptiveRandomForest {
 	private static final long serialVersionUID = 1L;
 	public int correctlyclassified;
 	public int classification_threshold = 0;
-	public int n_classifiers;
+	public int n_classifiers = 0;
 	public int n_classifiers_4 = 0;
 	public int correctlyclassified_at = 0;
+
 
 	public IntOption slidingWindowSizeOption = new IntOption("slidingWindowSize", 'z',
 			"Size of the sliding window", 10, 1, Integer.MAX_VALUE);
 	public IntOption density_control_size = new IntOption("density_control_size", 'ç',
-			"Size of the sliding window", 100, 1, Integer.MAX_VALUE);
+			"Size of the sliding window", 300, 1, Integer.MAX_VALUE);
+	public FlagOption selectionClassifiers = new FlagOption("selectionClassifiers", 't',
+			"Should use selection of classifiers?");
+	//public FlagOption weightOption = new FlagOption("weightOption", 't',
+	//		"Should use selection of classifiers?");
+
 
 	LinkedList<LinkedList<Integer>> slidingWindowarray;
 	int[] density = new int[this.slidingWindowSizeOption.getValue() + 1];
@@ -117,10 +124,76 @@ public class STSARF extends AdaptiveRandomForest {
 			this.slidingWindowarray.add(new LinkedList<Integer>());
 		}
 	}
+	@Override
+	public void trainOnInstanceImpl(Instance instance) {
+		++this.instancesSeen;
+		if(this.ensemble == null) 
+			initEnsemble(instance);
+		Collection<TrainingRunnable> trainers = new ArrayList<TrainingRunnable>();
+		for (int i = 0 ; i < this.ensemble.length ; i++) {
+			int correctlyClassifies = this.resultados[i] == (int) instance.classValue()? 1 : 0; 
+			this.slidingWindowarray.get(i).add(correctlyClassifies);
+			if(this.slidingWindowarray.get(i).size() == this.slidingWindowSizeOption.getValue() + 1){	           	
+				this.slidingWindowarray.get(i).removeFirst();	
+			}
+			for(int j = 0; j < this.slidingWindowarray.get(i).size(); ++j) {
+				correctlyclassified_at += this.slidingWindowarray.get(i).get(j);
+			}
+			this.density_control.add(correctlyclassified_at);
+			this.density[correctlyclassified_at] += 1;
+			if(this.density_control.size() == this.density_control_size.getValue() + 1) {
+
+				int index_decimal = this.density_control.get(0);
+				this.density[index_decimal] -= 1;
+				this.density_control.removeFirst();
+			}
+			correctlyclassified_at = 0;
+			DoubleVector vote = new DoubleVector(this.ensemble[i].getVotesForInstance(instance));
+			InstanceExample example = new InstanceExample(instance);
+			this.ensemble[i].evaluator.addResult(example, vote.getArrayRef());
+			int k = MiscUtils.poisson(this.lambdaOption.getValue(), this.classifierRandom);
+			if (k > 0) {
+				if(this.executor != null) {
+					TrainingRunnable trainer = new TrainingRunnable(this.ensemble[i], 
+							instance, k, this.instancesSeen);
+					trainers.add(trainer);
+				}
+				else { // SINGLE_THREAD is in-place... 
+					this.ensemble[i].trainOnInstance(instance, k, this.instancesSeen);
+				}
+			}
+		}
+		if(this.executor != null) {
+			try {
+				this.executor.invokeAll(trainers);
+			} catch (InterruptedException ex) {
+				throw new RuntimeException("Could not call invokeAll() on training threads.");
+			}
+		}
+		if(selectionClassifiers.isSet()) {
+			// cálculo do limiar de classificação 
+			int most_recurrent = 0;
+			for(int r = 5; r < this.density.length; ++r) {
+				int current = this.density[r];
+				n_classifiers_4 += current;
+				if(current >= most_recurrent) {
+					this.classification_threshold = r;
+					most_recurrent = current;
+				}
+			}
+
+			if(n_classifiers_4 < 20) {
+				this.classification_threshold = 0;
+			}
+			if(this.classification_threshold == 10) {
+				this.classification_threshold = 9;
+			}
+			this.n_classifiers_4 = 0;
+			this.n_classifiers = 0;
+		}
+	}
 
 
-
-	//SELEÇÃO DE CLASSIFICADORES
 	@Override
 	public double[] getVotesForInstance(Instance instance) {
 		Instance testInstance = instance.copy();
@@ -136,64 +209,30 @@ public class STSARF extends AdaptiveRandomForest {
 			}
 			int correctlyclassified_c = this.correctlyclassified;
 			this.correctlyclassified = 0;
-			
+
 
 			DoubleVector vote = new DoubleVector(this.ensemble[i].getVotesForInstance(testInstance));
 			if (vote.sumOfValues() > 0.0) {
 				vote.normalize();
-				double acc = this.ensemble[i].evaluator.getPerformanceMeasurements()[1].getValue();
+				
+				double acc = (correctlyclassified_c * 10 ) * this.ensemble[i].evaluator.getPerformanceMeasurements()[1].getValue();
 				if(! this.disableWeightedVote.isSet() && acc > 0.0) {                        
 					for(int v = 0 ; v < vote.numValues() ; ++v) {
 						vote.setValue(v, vote.getValue(v) * acc);
 					}
 				}
-				//selecao classificadores
-				if(correctlyclassified_c >= classification_threshold) {
+				if(selectionClassifiers.isSet()) {
+					//selecao classificadores
+					if(correctlyclassified_c >= this.classification_threshold) {
+						combinedVote.addValues(vote);
+						this.n_classifiers += 1;
+					}
+				}else {
 					combinedVote.addValues(vote);
 				}
-				
 			}
 			resultados[i] = Utils.maxIndex(vote.getArrayRef());
 		}
-		//ATUALIZA A DENSIDADE
-		for(int j = 0; j < resultados.length; ++j) {
-			int correctlyClassifies = resultados[j] == (int) instance.classValue()? 1 : 0; 
-			this.slidingWindowarray.get(j).add(correctlyClassifies);
-			if(this.slidingWindowarray.get(j).size() == this.slidingWindowSizeOption.getValue() + 1){	           	
-				this.slidingWindowarray.get(j).removeFirst();	
-			}
-			for(int k = 0; k < this.slidingWindowarray.get(j).size(); ++k) {
-				correctlyclassified_at += this.slidingWindowarray.get(j).get(k);
-			}
-			this.density_control.add(correctlyclassified_at);
-			this.density[correctlyclassified_at] += 1;
-			if(this.density_control.size() == this.density_control_size.getValue() + 1) {
-
-				int index_decimal = this.density_control.get(0);
-				this.density[index_decimal] -= 1;
-				this.density_control.removeFirst();
-			}
-			correctlyclassified_at = 0;
-		}
-		int most_recurrent = 0;
-		for(int r = 0; r < this.density.length; ++r) {
-			if(r > 4) {
-				int current = this.density[r];
-				n_classifiers_4 += current;
-				if(current >= most_recurrent) {
-					this.classification_threshold = r;
-					most_recurrent = current;
-				}}
-		}
-		if(n_classifiers_4 < 20) {
-			this.classification_threshold = 0;
-		}
-		if(classification_threshold == 10) {
-			classification_threshold = 9;
-		}
-		n_classifiers_4 = 0;
-
 		return combinedVote.getArrayRef();
 	}
 }
-
